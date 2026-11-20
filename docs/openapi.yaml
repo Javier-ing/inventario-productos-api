@@ -1,0 +1,305 @@
+openapi: 3.0.3
+info:
+  title: API de inventario de productos
+  version: 1.0.0
+  description: |
+    API REST para gestionar los productos de un inventario. Construida con Node.js, Express y MongoDB (Mongoose).
+    Proyecto formativo SENA GA7-220501096 · AA5-EV01.
+
+    **Convenciones**
+    - Los cuerpos de solicitud y respuesta son JSON (UTF-8).
+    - Todos los errores usan el mismo formato (`ErrorApi`): `fecha`, `estado`, `error`, `mensaje` y, en validaciones, `detalles` con un mensaje por campo.
+    - El código del producto es único sin distinguir mayúsculas.
+  contact:
+    name: Javier Eduardo Osorio Garcia
+servers:
+  - url: http://localhost:8080
+    description: Desarrollo local
+tags:
+  - name: Estado
+    description: Verificación del servicio
+  - name: Productos
+    description: Gestión de productos del inventario
+paths:
+  /api:
+    get:
+      tags: [Estado]
+      summary: Estado del servicio
+      description: Confirma que la API está activa e indica si la conexión con MongoDB está disponible.
+      operationId: estadoServicio
+      responses:
+        '200':
+          description: Servicio activo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estado'
+              example:
+                servicio: API de inventario de productos
+                version: 1.0.0
+                estado: activo
+                baseDatos: conectada
+                documentacion: /api-docs
+  /api/productos:
+    get:
+      tags: [Productos]
+      summary: Listar o buscar productos
+      description: Devuelve todos los productos ordenados por nombre. Con `nombre` filtra por coincidencia parcial sin distinguir mayúsculas.
+      operationId: listarProductos
+      parameters:
+        - name: nombre
+          in: query
+          required: false
+          description: Texto a buscar dentro del nombre del producto.
+          schema:
+            type: string
+          example: mouse
+      responses:
+        '200':
+          description: Lista de productos (vacía si no hay coincidencias)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Producto'
+        '400':
+          $ref: '#/components/responses/SolicitudInvalida'
+        '503':
+          $ref: '#/components/responses/BaseDatosNoDisponible'
+    post:
+      tags: [Productos]
+      summary: Registrar un producto
+      description: Crea un producto. El identificador y la fecha de registro los genera el servidor.
+      operationId: crearProducto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoEntrada'
+            example:
+              codigo: P-006
+              nombre: Webcam HD
+              descripcion: Cámara web 1080p con micrófono
+              precio: 125000
+              stock: 15
+      responses:
+        '201':
+          description: Producto creado. El encabezado `Location` trae la URL del nuevo recurso.
+          headers:
+            Location:
+              schema:
+                type: string
+              example: /api/productos/6650f1c2a4b3c9d8e7f60123
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          $ref: '#/components/responses/SolicitudInvalida'
+        '409':
+          $ref: '#/components/responses/CodigoDuplicado'
+        '503':
+          $ref: '#/components/responses/BaseDatosNoDisponible'
+  /api/productos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador del producto (24 caracteres hexadecimales, el campo `idProducto`).
+        schema:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+        example: 6650f1c2a4b3c9d8e7f60123
+    get:
+      tags: [Productos]
+      summary: Consultar un producto
+      operationId: obtenerProducto
+      responses:
+        '200':
+          description: Producto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          $ref: '#/components/responses/SolicitudInvalida'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '503':
+          $ref: '#/components/responses/BaseDatosNoDisponible'
+    put:
+      tags: [Productos]
+      summary: Actualizar un producto
+      description: Reemplaza los datos editables (código, nombre, descripción, precio y stock). Se deben enviar todos los campos obligatorios. La fecha de registro no cambia.
+      operationId: actualizarProducto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoEntrada'
+            example:
+              codigo: P-006
+              nombre: Webcam Full HD
+              descripcion: Cámara web 1080p con micrófono y trípode
+              precio: 139900
+              stock: 12
+      responses:
+        '200':
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          $ref: '#/components/responses/SolicitudInvalida'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/CodigoDuplicado'
+        '503':
+          $ref: '#/components/responses/BaseDatosNoDisponible'
+    delete:
+      tags: [Productos]
+      summary: Eliminar un producto
+      operationId: eliminarProducto
+      responses:
+        '204':
+          description: Producto eliminado (sin cuerpo)
+        '400':
+          $ref: '#/components/responses/SolicitudInvalida'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '503':
+          $ref: '#/components/responses/BaseDatosNoDisponible'
+components:
+  schemas:
+    Estado:
+      type: object
+      properties:
+        servicio:
+          type: string
+        version:
+          type: string
+        estado:
+          type: string
+          example: activo
+        baseDatos:
+          type: string
+          enum: [conectada, desconectada, conectando, desconectando]
+        documentacion:
+          type: string
+    ProductoEntrada:
+      type: object
+      required: [codigo, nombre, precio, stock]
+      properties:
+        codigo:
+          type: string
+          maxLength: 20
+          pattern: '^[A-Za-z0-9_-]+$'
+          description: Código único (letras, números, guion y guion bajo). No distingue mayúsculas.
+          example: P-006
+        nombre:
+          type: string
+          maxLength: 100
+          example: Webcam HD
+        descripcion:
+          type: string
+          nullable: true
+          maxLength: 255
+          example: Cámara web 1080p con micrófono
+        precio:
+          type: number
+          minimum: 0
+          description: Hasta 10 enteros y 2 decimales.
+          example: 125000
+        stock:
+          type: integer
+          minimum: 0
+          example: 15
+    Producto:
+      type: object
+      properties:
+        idProducto:
+          type: string
+          description: Identificador generado por MongoDB (ObjectId).
+          example: 6650f1c2a4b3c9d8e7f60123
+        codigo:
+          type: string
+          example: P-006
+        nombre:
+          type: string
+          example: Webcam HD
+        descripcion:
+          type: string
+          nullable: true
+          example: Cámara web 1080p con micrófono
+        precio:
+          type: number
+          example: 125000
+        stock:
+          type: integer
+          example: 15
+        fechaRegistro:
+          type: string
+          format: date-time
+          example: '2026-11-19T15:04:05.123Z'
+    ErrorApi:
+      type: object
+      properties:
+        fecha:
+          type: string
+          format: date-time
+        estado:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        mensaje:
+          type: string
+          example: Los datos enviados no son válidos
+        detalles:
+          type: object
+          description: Mensaje por campo (solo en errores de validación).
+          additionalProperties:
+            type: string
+          example:
+            precio: El precio no puede ser negativo
+  responses:
+    SolicitudInvalida:
+      description: Datos o parámetros no válidos (campos incorrectos, id mal formado o JSON mal escrito)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApi'
+    NoEncontrado:
+      description: No existe un producto con ese id
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApi'
+          example:
+            fecha: '2026-11-19T15:04:05.123Z'
+            estado: 404
+            error: Not Found
+            mensaje: No existe un producto con id 6650f1c2a4b3c9d8e7f60123
+    CodigoDuplicado:
+      description: Ya existe otro producto con el mismo código
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApi'
+          example:
+            fecha: '2026-11-19T15:04:05.123Z'
+            estado: 409
+            error: Conflict
+            mensaje: Ya existe un producto con el código P-001
+    BaseDatosNoDisponible:
+      description: La API no logra comunicarse con MongoDB
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApi'
