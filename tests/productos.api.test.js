@@ -257,6 +257,25 @@ describe('PUT /api/productos/:id (actualizar)', () => {
         expect(consulta.body.stock).toBe(12);
     });
 
+    test.each([
+        ['precio', 1.234, 'El precio admite hasta 10 enteros y 2 decimales'],
+        ['precio', '100', 'El precio debe ser un número'],
+        ['codigo', 'P 001', 'El código solo admite letras, números, guion y guion bajo'],
+        ['nombre', '   ', 'El nombre es obligatorio'],
+    ])('400 si %s = %p (las mismas reglas que al registrar)', async (campo, valor, mensaje) => {
+        const creado = await registrar(teclado);
+        const respuesta = await request(app).put(`${RUTA}/${creado.idProducto}`).send({ ...teclado, [campo]: valor });
+        expect(respuesta.status).toBe(400);
+        expect(respuesta.body.detalles).toEqual({ [campo]: mensaje });
+    });
+
+    test('limpia espacios sobrantes al actualizar', async () => {
+        const creado = await registrar(teclado);
+        const cambios = { ...teclado, nombre: '  Nuevo  ' };
+        const respuesta = await request(app).put(`${RUTA}/${creado.idProducto}`).send(cambios);
+        expect(respuesta.body.nombre).toBe('Nuevo');
+    });
+
     test('404 si el producto no existe', async () => {
         const respuesta = await request(app).put(`${RUTA}/${ID_INEXISTENTE}`).send(teclado);
         expect(respuesta.status).toBe(404);
