@@ -1,0 +1,791 @@
+{
+    "info": {
+        "name": "API de inventario de productos (AA5-EV01)",
+        "description": "Colección de pruebas de la API REST de inventario (Node.js + Express + MongoDB). Ejecute las carpetas en orden (Runner). Las variables baseUrl y las de datos se crean solas.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:8080"
+        }
+    ],
+    "item": [
+        {
+            "name": "00 Estado del servicio",
+            "item": [
+                {
+                    "name": "GET /api - estado del servicio",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('Servicio activo y base conectada', () => {",
+                                    "    const cuerpo = pm.response.json();",
+                                    "    pm.expect(cuerpo.estado).to.eql('activo');",
+                                    "    pm.expect(cuerpo.baseDatos).to.eql('conectada');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api"
+                            ]
+                        },
+                        "description": ""
+                    }
+                }
+            ]
+        },
+        {
+            "name": "01 Registrar productos",
+            "item": [
+                {
+                    "name": "POST registrar producto (201)",
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "const sufijo = String(Date.now()).slice(-8);",
+                                    "pm.collectionVariables.set('codigo1', 'PM-' + sufijo + 'A');",
+                                    "pm.collectionVariables.set('codigo1Minuscula', 'pm-' + sufijo + 'a');",
+                                    "pm.collectionVariables.set('codigo2', 'PM-' + sufijo + 'B');"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 201', () => pm.response.to.have.status(201));",
+                                    "const producto = pm.response.json();",
+                                    "pm.test('Devuelve idProducto y fechaRegistro generados por el servidor', () => {",
+                                    "    pm.expect(producto.idProducto).to.match(/^[a-f0-9]{24}$/);",
+                                    "    pm.expect(producto.fechaRegistro).to.be.a('string');",
+                                    "});",
+                                    "pm.test('Encabezado Location apunta al nuevo recurso', () => {",
+                                    "    pm.expect(pm.response.headers.get('Location')).to.eql('/api/productos/' + producto.idProducto);",
+                                    "});",
+                                    "pm.collectionVariables.set('idProducto1', producto.idProducto);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"codigo\": \"{{codigo1}}\",\n    \"nombre\": \"Webcam HD\",\n    \"descripcion\": \"Cámara web 1080p\",\n    \"precio\": 125000,\n    \"stock\": 15\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "POST registrar segundo producto (201)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 201', () => pm.response.to.have.status(201));",
+                                    "pm.test('Descripción opcional: llega como null', () => pm.expect(pm.response.json().descripcion).to.eql(null));",
+                                    "pm.collectionVariables.set('idProducto2', pm.response.json().idProducto);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"codigo\": \"{{codigo2}}\",\n    \"nombre\": \"Mouse gamer\",\n    \"precio\": 89900.5,\n    \"stock\": 0\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "POST código duplicado, otra capitalización (409)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 409', () => pm.response.to.have.status(409));",
+                                    "pm.test('Error uniforme', () => pm.expect(pm.response.json()).to.include.keys('fecha', 'estado', 'error', 'mensaje'));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"codigo\": \"{{codigo1Minuscula}}\",\n    \"nombre\": \"Repetido\",\n    \"precio\": 1,\n    \"stock\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "POST datos inválidos (400)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 400', () => pm.response.to.have.status(400));",
+                                    "pm.test('Un mensaje por campo en «detalles»', () => {",
+                                    "    const detalles = pm.response.json().detalles;",
+                                    "    pm.expect(detalles.codigo).to.eql('El código solo admite letras, números, guion y guion bajo');",
+                                    "    pm.expect(detalles.nombre).to.eql('El nombre es obligatorio');",
+                                    "    pm.expect(detalles.precio).to.eql('El precio no puede ser negativo');",
+                                    "    pm.expect(detalles.stock).to.eql('El stock debe ser un número entero');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"codigo\": \"A B\",\n    \"nombre\": \"\",\n    \"precio\": -5,\n    \"stock\": 1.5\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "POST JSON mal escrito (400)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 400', () => pm.response.to.have.status(400));",
+                                    "pm.test('Mensaje: El cuerpo de la solicitud no es un JSON válido', () => pm.expect(pm.response.json().mensaje).to.eql('El cuerpo de la solicitud no es un JSON válido'));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"codigo\": ",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "02 Consultar y buscar",
+            "item": [
+                {
+                    "name": "GET listar productos (200)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('Es un arreglo con los productos creados', () => {",
+                                    "    const ids = pm.response.json().map((p) => p.idProducto);",
+                                    "    pm.expect(ids).to.include(pm.collectionVariables.get('idProducto1'));",
+                                    "    pm.expect(ids).to.include(pm.collectionVariables.get('idProducto2'));",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos"
+                            ]
+                        },
+                        "description": ""
+                    }
+                },
+                {
+                    "name": "GET buscar por nombre (200)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('Encuentra por coincidencia parcial sin distinguir mayúsculas', () => {",
+                                    "    const nombres = pm.response.json().map((p) => p.nombre);",
+                                    "    pm.expect(nombres).to.include('Webcam HD');",
+                                    "    pm.expect(nombres).to.not.include('Mouse gamer');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos?nombre=WEBCAM",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos"
+                            ],
+                            "query": [
+                                {
+                                    "key": "nombre",
+                                    "value": "WEBCAM"
+                                }
+                            ]
+                        },
+                        "description": ""
+                    }
+                },
+                {
+                    "name": "GET consultar por id (200)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('Devuelve el producto pedido', () => pm.expect(pm.response.json().codigo).to.eql(pm.collectionVariables.get('codigo1')));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/{{idProducto1}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "{{idProducto1}}"
+                            ]
+                        },
+                        "description": ""
+                    }
+                },
+                {
+                    "name": "GET id que no existe (404)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 404', () => pm.response.to.have.status(404));",
+                                    "pm.test('Mensaje: No existe un producto con id 000000000000000000000000', () => pm.expect(pm.response.json().mensaje).to.eql('No existe un producto con id 000000000000000000000000'));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/000000000000000000000000",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "000000000000000000000000"
+                            ]
+                        },
+                        "description": ""
+                    }
+                },
+                {
+                    "name": "GET id con formato inválido (400)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 400', () => pm.response.to.have.status(400));",
+                                    "pm.test('Mensaje: El parámetro \\'id\\' tiene un valor no válido', () => pm.expect(pm.response.json().mensaje).to.eql('El parámetro \\'id\\' tiene un valor no válido'));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/abc",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "abc"
+                            ]
+                        },
+                        "description": ""
+                    }
+                }
+            ]
+        },
+        {
+            "name": "03 Actualizar",
+            "item": [
+                {
+                    "name": "PUT actualizar producto (200)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('Datos actualizados y mismo idProducto', () => {",
+                                    "    const producto = pm.response.json();",
+                                    "    pm.expect(producto.nombre).to.eql('Webcam Full HD');",
+                                    "    pm.expect(producto.precio).to.eql(139900);",
+                                    "    pm.expect(producto.idProducto).to.eql(pm.collectionVariables.get('idProducto1'));",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/{{idProducto1}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "{{idProducto1}}"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"codigo\": \"{{codigo1}}\",\n    \"nombre\": \"Webcam Full HD\",\n    \"descripcion\": \"Cámara 1080p con trípode\",\n    \"precio\": 139900,\n    \"stock\": 12\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "PUT con el código de otro producto (409)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 409', () => pm.response.to.have.status(409));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/{{idProducto2}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "{{idProducto2}}"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"codigo\": \"{{codigo1}}\",\n    \"nombre\": \"Mouse gamer\",\n    \"precio\": 89900.5,\n    \"stock\": 0\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "PUT datos inválidos (400)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 400', () => pm.response.to.have.status(400));",
+                                    "pm.test('Mensaje de precio', () => pm.expect(pm.response.json().detalles.precio).to.eql('El precio admite hasta 10 enteros y 2 decimales'));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/{{idProducto1}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "{{idProducto1}}"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"codigo\": \"{{codigo1}}\",\n    \"nombre\": \"Webcam\",\n    \"precio\": 10.999,\n    \"stock\": 3\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "PUT producto que no existe (404)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 404', () => pm.response.to.have.status(404));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/000000000000000000000000",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "000000000000000000000000"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"codigo\": \"ZZ-1\",\n    \"nombre\": \"Nada\",\n    \"precio\": 1,\n    \"stock\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "04 Eliminar (limpieza)",
+            "item": [
+                {
+                    "name": "DELETE eliminar primer producto (204)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 204', () => pm.response.to.have.status(204));",
+                                    "pm.test('Sin cuerpo', () => pm.expect(pm.response.text()).to.eql(''));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/{{idProducto1}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "{{idProducto1}}"
+                            ]
+                        },
+                        "description": ""
+                    }
+                },
+                {
+                    "name": "DELETE eliminar segundo producto (204)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 204', () => pm.response.to.have.status(204));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/{{idProducto2}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "{{idProducto2}}"
+                            ]
+                        },
+                        "description": ""
+                    }
+                },
+                {
+                    "name": "GET producto eliminado (404)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 404', () => pm.response.to.have.status(404));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/{{idProducto1}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "{{idProducto1}}"
+                            ]
+                        },
+                        "description": ""
+                    }
+                },
+                {
+                    "name": "DELETE producto ya eliminado (404)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Estado HTTP 404', () => pm.response.to.have.status(404));"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/productos/{{idProducto1}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "productos",
+                                "{{idProducto1}}"
+                            ]
+                        },
+                        "description": ""
+                    }
+                }
+            ]
+        }
+    ]
+}
