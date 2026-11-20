@@ -7,7 +7,7 @@
         "start": "node app.js",
         "dev": "nodemon app.js",
         "sembrar": "node scripts/sembrar.js",
-        "test": "jest --runInBand",
+        "test": "vitest run",
         "lint": "eslint ."
     },
     "keywords": [
@@ -36,8 +36,8 @@
         "@stylistic/eslint-plugin": "^6.0.1",
         "eslint": "^10.15.0",
         "globals": "^17.14.0",
-        "jest": "^30.5.2",
         "nodemon": "^3.1.14",
-        "supertest": "^7.3.2"
+        "supertest": "^7.3.2",
+        "vitest": "^5.1.1"
     }
 }

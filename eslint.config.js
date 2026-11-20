@@ -33,7 +33,7 @@ module.exports = [
     },
     {
         files: ['tests/**/*.js'],
-        languageOptions: { globals: { ...globals.jest } },
+        languageOptions: { globals: { ...globals.vitest } },
         rules: { 'max-lines-per-function': 'off' },
     },
 ];
